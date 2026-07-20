@@ -1,47 +1,14 @@
 const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
 
 (function(w) {
-    function getJsonI18N() {
-        // https://developer.mozilla.org/zh-CN/docs/Web/API/Navigator/language
-        
-        const LANGUAGES = [
-            { regex: /^zh\b/, lang: 'zh' },
-            { regex: /^ja\b/, lang: 'ja' },
-            { regex: /.*/, lang: 'en'}
-        ]
-
-        const lang = LANGUAGES.find(l => l.regex.test(navigator.language)).lang
-        
-        return $.ajax({
-            url: `./static/i18n/${lang}.json`,
-            dataType: 'json',
-            method: 'GET',
-            async: false,
-            success: data => res = data,
-            error: () => alert('找不到语言文件: ' + lang)
-        }).responseJSON
-    }
-
-    const I18N = getJsonI18N()
-
-    $('[data-i18n]').each(function() {
-        const content = I18N[this.dataset.i18n];
-        $(this).text(content);
-    });
-
-    $('[data-placeholder-i18n]').each(function() {
-        $(this).attr('placeholder', I18N[this.dataset.placeholderI18n]);
-    });
-
-    $('html').attr('lang', I18N['lang']);
-
     let isDesktop = !navigator['userAgent'].match(/(ipad|iphone|ipod|android|windows phone)/i);
     let fontunit = isDesktop ? 20 : ((window.innerWidth > window.innerHeight ? window.innerHeight : window.innerWidth) / 320) * 10;
     document.write('<style type="text/css">' +
         'html,body {font-size:' + (fontunit < 30 ? fontunit : '30') + 'px;}' +
         (isDesktop ? '#welcome,#GameTimeLayer,#GameLayerBG,#GameScoreLayer.SHADE{position: absolute;}' :
-            '#welcome,#GameTimeLayer,#GameLayerBG,#GameScoreLayer.SHADE{position:fixed;}@media screen and (orientation:landscape) {#landscape {display: box; display: -webkit-box; display: -moz-box; display: -ms-flexbox;}}') +
+            '#welcome,#GameTimeLayer,#GameLayerBG,#GameScoreLayer.SHADE{position:fixed;}') +
         '</style>');
+
     let map = {'d': 1, 'f': 2, 'j': 3, 'k': 4};
     if (isDesktop) {
         document.write('<div id="gameBody">');
@@ -59,7 +26,6 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
     let transform, transitionDuration, welcomeLayerClosed;
 
     let mode = getMode();
-
     let soundMode = getSoundMode();
 
     w.init = function() {
@@ -86,28 +52,26 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
     }
 
     function getMode() {
-        //有cookie优先返回cookie记录的，没有再返回normal
         return cookie('gameMode') ? parseInt(cookie('gameMode')) : MODE_NORMAL;
     }
 
     function getSoundMode() {
-        // 默认为 on
         return cookie('soundMode') ? cookie('soundMode') : 'on';
     }
 
     w.changeSoundMode = function() {
         if (soundMode === 'on') {
             soundMode = 'off';
-            $('#sound').text(I18N['sound-off']);
+            $('#sound').text('Sound: OFF');
         } else {
             soundMode = 'on';
-            $('#sound').text(I18N['sound-on']);
+            $('#sound').text('Sound: ON');
         }
         cookie('soundMode', soundMode);
     }
 
     function modeToString(m) {
-        return m === MODE_NORMAL ? I18N['normal'] : (m === MODE_ENDLESS ? I18N['endless'] : I18N['practice']);
+        return m === MODE_NORMAL ? 'Normal' : (m === MODE_ENDLESS ? 'Endless' : 'Practice');
     }
 
     w.changeMode = function(m) {
@@ -119,13 +83,6 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
     w.readyBtn = function() {
         closeWelcomeLayer();
         updatePanel();
-    }
-
-    w.winOpen = function() {
-        window.open(location.href + '?r=' + Math.random(), 'nWin', 'height=500,width=320,toolbar=no,menubar=no,scrollbars=no');
-        let opened = window.open('about:blank', '_self');
-        opened.opener = null;
-        opened.close();
     }
 
     let refreshSizeTime;
@@ -214,7 +171,6 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
         _date1 = new Date();
         _gameStartDatetime = _date1.getTime();
         _gameStart = true;
-
         _gameTime = setInterval(timer, 1000);
     }
 
@@ -230,7 +186,7 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
         _gameTimeNum--;
         _gameStartTime++;
         if (mode === MODE_NORMAL && _gameTimeNum <= 0) {
-            GameTimeLayer.innerHTML = I18N['time-up'] + '!';
+            GameTimeLayer.innerHTML = 'TIME UP!';
             gameOver();
             GameLayerBG.className += ' flash';
             if (soundMode === 'on') {
@@ -243,19 +199,15 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
     function updatePanel() {
         if (mode === MODE_NORMAL) {
             if (!_gameOver) {
-                GameTimeLayer.innerHTML = createTimeText(_gameTimeNum);
+                GameTimeLayer.innerHTML = 'TIME: ' + Math.ceil(_gameTimeNum);
             }
         } else if (mode === MODE_ENDLESS) {
             let cps = getCPS();
-            let text = (cps === 0 ? I18N['calculating'] : cps.toFixed(2));
-            GameTimeLayer.innerHTML = `CPS:${text}`;
+            let text = (cps === 0 ? 'Calculating...' : cps.toFixed(2));
+            GameTimeLayer.innerHTML = `CPS: ${text}`;
         } else {
-            GameTimeLayer.innerHTML = `SCORE:${_gameScore}`;
+            GameTimeLayer.innerHTML = `SCORE: ${_gameScore}`;
         }
-    }
-    //使重试按钮获得焦点
-    function foucusOnReplay(){
-        $('#replay').focus()
     }
 
     function gameOver() {
@@ -266,31 +218,8 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
         setTimeout(function () {
             GameLayerBG.className = '';
             showGameScoreLayer(cps);
-            foucusOnReplay();
+            $('#replay').focus();
         }, 1500);
-    }
-
-
-    function encrypt(text) {
-        let encrypt = new JSEncrypt();
-        encrypt.setPublicKey("MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDTzGwX6FVKc7rDiyF3H+jKpBlRCV4jOiJ4JR33qZPVXx8ahW6brdBF9H1vdHBAyO6AeYBumKIyunXP9xzvs1qJdRNhNoVwHCwGDu7TA+U4M7G9FArDG0Y6k4LbS0Ks9zeRBMiWkW53yQlPshhtOxXCuZZOMLqk1vEvTCODYYqX5QIDAQAB");
-        return encrypt.encrypt(text);
-    }
-
-    function SubmitResults() {
-        if ($("#username").val() && _gameSettingNum === 20) {
-            let httpRequest = new XMLHttpRequest();
-            httpRequest.open('POST', './SubmitResults.php', true);
-            httpRequest.setRequestHeader("Content-type", "application/json");
-            let name = $("#username").val();
-            let message = $("#message").val();
-            let test = "|_|";
-            httpRequest.send(encrypt(_gameScore + test + name + test + tj + test + message));
-        }
-    }
-
-    function createTimeText(n) {
-        return 'TIME:' + Math.ceil(n);
     }
 
     let _ttreg = / t{1,2}(\d+)/,
@@ -369,9 +298,7 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
             tar.className = tar.className.replace(_ttreg, ' tt$1');
             _gameBBListIndex++;
             _gameScore++;
-
             updatePanel();
-
             gameLayerMoveNextRow();
         } else if (_gameStart && !tar.notEmpty) {
             if (soundMode === 'on') {
@@ -420,8 +347,7 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
     }
 
     function getBestScore(score) {
-        // 练习模式不会进入算分界面
-        let cookieName = (mode === MODE_NORMAL ? 'bast-score' : 'endless-best-score');
+        let cookieName = (mode === MODE_NORMAL ? 'best-score' : 'endless-best-score');
         let best = cookie(cookieName) ? Math.max(parseFloat(cookie(cookieName)), score) : score;
         cookie(cookieName, best.toFixed(2), 100);
         return best;
@@ -431,58 +357,37 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
         return mode === MODE_ENDLESS ? score.toFixed(2) : score.toString();
     }
 
-    function legalDeviationTime() {
-        return deviationTime < (_gameSettingNum + 3) * 1000;
-    }
-
     function showGameScoreLayer(cps) {
         let l = $('#GameScoreLayer');
         let c = $(`#${_gameBBList[_gameBBListIndex - 1].id}`).attr('class').match(_ttreg)[1];
         let score = (mode === MODE_ENDLESS ? cps : _gameScore);
         let best = getBestScore(score);
         l.attr('class', l.attr('class').replace(/bgc\d/, 'bgc' + c));
-        $('#GameScoreLayer-text').html(shareText(cps));
-        let normalCond = legalDeviationTime() || mode !== MODE_NORMAL;
-        l.css('color', normalCond ? '': 'red');
-
+        
+        let resultText = '';
+        if (cps <= 5) resultText = 'Great job!';
+        else if (cps <= 8) resultText = 'Nice!';
+        else if (cps <= 10) resultText = 'Excellent!';
+        else if (cps <= 15) resultText = 'Amazing!';
+        else resultText = 'Perfect!';
+        
+        $('#GameScoreLayer-text').html(resultText);
         $('#cps').text(cps.toFixed(2));
         $('#score').text(scoreToString(score));
         $('#GameScoreLayer-score').css('display', mode === MODE_ENDLESS ? 'none' : '');
         $('#best').text(scoreToString(best));
-
         l.css('display', 'block');
-    }
-
-    function hideGameScoreLayer() {
-        $('#GameScoreLayer').css('display', 'none');
     }
 
     w.replayBtn = function() {
         gameRestart();
-        hideGameScoreLayer();
+        $('#GameScoreLayer').css('display', 'none');
     }
 
     w.backBtn = function() {
         gameRestart();
-        hideGameScoreLayer();
+        $('#GameScoreLayer').css('display', 'none');
         showWelcomeLayer();
-    }
-
-    function shareText(cps) {
-        if (mode === MODE_NORMAL) {
-            let date2 = new Date();
-            deviationTime = (date2.getTime() - _date1.getTime())
-            if (!legalDeviationTime()) {
-                return I18N['time-over'] + ((deviationTime / 1000) - _gameSettingNum).toFixed(2) + 's';
-            }
-            SubmitResults();
-        }
-
-        if (cps <= 5) return I18N['text-level-1'];
-        if (cps <= 8) return I18N['text-level-2'];
-        if (cps <= 10)  return I18N['text-level-3'];
-        if (cps <= 15) return I18N['text-level-4'];
-        return I18N['text-level-5'];
     }
 
     function toStr(obj) {
@@ -500,13 +405,10 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
                     let date = new Date();
                     date.setTime(date.getTime() + 864e5 * time), time = date.toGMTString();
                 }
-                return document.cookie = name + "=" + escape(toStr(value)) + (time ? "; expires=" + time + (arguments[3] ?
-                    "; domain=" + arguments[3] + (arguments[4] ? "; path=" + arguments[4] + (arguments[5] ? "; secure" : "") : "") :
-                    "") : ""), !0;
+                return document.cookie = name + "=" + escape(toStr(value)) + (time ? "; expires=" + time : ""), !0;
             }
-            return value = document.cookie.match("(?:^|;)\\s*" + name.replace(/([-.*+?^${}()|[\]\/\\])/g, "\\$1") + "=([^;]*)"),
-                value = value && "string" == typeof value[1] ? unescape(value[1]) : !1, (/^(\{|\[).+\}|\]$/.test(value) ||
-                /^[0-9]+$/g.test(value)) && eval("value=" + value), value;
+            return value = document.cookie.match("(?:^|;)\\s*" + name.replace(/([-.\*+?^${}()|[\]\/\\])/g, "\\$1") + "=([^;]*)"),
+                value = value && "string" == typeof value[1] ? unescape(value[1]) : !1, value;
         }
         let data = {};
         value = document.cookie.replace(/\s/g, "").split(";");
@@ -517,27 +419,16 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
     document.write(createGameLayer());
 
     function initSetting() {
-        $("#username").val(cookie("username") ? cookie("username") : "");
-        $("#message").val(cookie("message") ? cookie("message") : "");
-        if (cookie("title")) {
+        if (cookie('title')) {
             $('title').text(cookie('title'));
             $('#title').val(cookie('title'));
-        }
-        let keyboard = cookie('keyboard');
-        if (keyboard) {
-            keyboard = keyboard.toString().toLowerCase();
-            $("#keyboard").val(keyboard);
-            map = {}
-            map[keyboard.charAt(0)] = 1;
-            map[keyboard.charAt(1)] = 2;
-            map[keyboard.charAt(2)] = 3;
-            map[keyboard.charAt(3)] = 4;
         }
         if (cookie('gameTime')) {
             $('#gameTime').val(cookie('gameTime'));
             _gameSettingNum = parseInt(cookie('gameTime'));
             gameRestart();
         }
+        $('#sound').text(soundMode === 'on' ? 'Sound: ON' : 'Sound: OFF');
     }
 
     w.show_btn = function() {
@@ -548,13 +439,12 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
     w.show_setting = function() {
         $('#btn_group,#desc').css('display', 'none')
         $('#setting').css('display', 'block')
-        $('#sound').text(soundMode === 'on' ? I18N['sound-on'] : I18N['sound-off']);
     }
 
     w.save_cookie = function() {
-        const settings = ['username', 'message', 'keyboard', 'title', 'gameTime'];
+        const settings = ['title', 'gameTime'];
         for (let s of settings) {
-            let value=$(`#${s}`).val();
+            let value=$(s === 'title' ? '#title' : '#gameTime').val();
             if(value){
                 cookie(s, value.toString(), 100);
             }
@@ -562,37 +452,19 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
         initSetting();
     }
 
-    function isnull(val) {
-        let str = val.replace(/(^\s*)|(\s*$)/g, '');
-        return str === '' || str === undefined || str == null;
-    }
-
-    w.goRank = function() {
-        let name = $("#username").val();
-        let link = './rank.php';
-        if (!isnull(name)) {
-            link += "?name=" + name;
-        }
-        window.location.href = link;
-    }
-
     function click(index) {
         if (!welcomeLayerClosed) {
             return;
         }
-
         let p = _gameBBList[_gameBBListIndex];
         let base = parseInt($(`#${p.id}`).attr("num")) - p.cell;
         let num = base + index - 1;
         let id = p.id.substring(0, 11) + num;
-
         let fakeEvent = {
             clientX: ((index - 1) * blockSize + index * blockSize) / 2 + body.offsetLeft,
-            // Make sure that it is in the area
             clientY: (touchArea[0] + touchArea[1]) / 2,
             target: document.getElementById(id),
         };
-
         gameTapEvent(fakeEvent);
     }
 
@@ -610,7 +482,6 @@ const MODE_NORMAL = 1, MODE_ENDLESS = 2, MODE_PRACTICE = 3;
             reader.readAsDataURL(dom.files[0]);
         }
     }
-
 
     w.getClickBeforeImage = function() {
         $('#click-before-image').click();
